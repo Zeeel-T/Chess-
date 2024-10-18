@@ -1,0 +1,180 @@
+<html><head><base href="https://websim-chess.example.com/evolving-chess/">
+<title>Evolving Chess</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    background-color: #f0f0f0;
+  }
+  #chessboard {
+    width: 560px;
+    height: 560px;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    border: 2px solid #333;
+  }
+  .square {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 40px;
+    position: relative;
+    cursor: pointer;
+  }
+  .white {
+    background-color: #f0d9b5;
+  }
+  .black {
+    background-color: #b58863;
+  }
+  .highlight {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 0, 0.5);
+    pointer-events: none;
+  }
+  .evolution-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 12px;
+    color: #ff0000;
+  }
+  #message {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 18px;
+  }
+</style>
+</head>
+<body>
+<div id="message"></div>
+<div id="chessboard"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<script>
+const board = document.getElementById('chessboard');
+const messageElement = document.getElementById('message');
+let game = new Chess();
+let selectedSquare = null;
+let piecesMoved = {};
+
+const pieceSymbols = {
+  p: '♟', r: '♜', n: '♞', b: '♝', q: '♛', k: '♚',
+  P: '♙', R: '♖', N: '♘', B: '♗', Q: '♕', K: '♔'
+};
+
+function createBoard() {
+  board.innerHTML = '';
+  for (let i = 0; i < 64; i++) {
+    const square = document.createElement('div');
+    square.classList.add('square');
+    square.classList.add((i + Math.floor(i / 8)) % 2 === 0 ? 'white' : 'black');
+    square.dataset.square = String.fromCharCode(97 + (i % 8)) + (8 - Math.floor(i / 8));
+    square.addEventListener('click', onSquareClick);
+    board.appendChild(square);
+  }
+  updateBoard();
+}
+
+function updateBoard() {
+  const position = game.board();
+  for (let i = 0; i < 8; i++) {
+    for (let j = 0; j < 8; j++) {
+      const square = board.querySelector(`[data-square="${String.fromCharCode(97 + j)}${8 - i}"]`);
+      const piece = position[i][j];
+      square.innerHTML = '';
+      if (piece) {
+        square.textContent = pieceSymbols[piece.type] || '';
+        if (piecesMoved[`${piece.color}${piece.type}-${j}-${i}`]) {
+          const evolutionIndicator = document.createElement('span');
+          evolutionIndicator.classList.add('evolution-indicator');
+          evolutionIndicator.textContent = piecesMoved[`${piece.color}${piece.type}-${j}-${i}`];
+          square.appendChild(evolutionIndicator);
+        }
+      }
+    }
+  }
+}
+
+function onSquareClick(event) {
+  const clickedSquare = event.target.dataset.square;
+  
+  if (selectedSquare) {
+    const move = game.move({
+      from: selectedSquare,
+      to: clickedSquare,
+      promotion: 'q'
+    });
+
+    if (move) {
+      updatePieceMoveCount(move);
+      updateBoard();
+      selectedSquare = null;
+      clearHighlights();
+    } else {
+      selectedSquare = clickedSquare;
+      showPossibleMoves(clickedSquare);
+    }
+  } else {
+    selectedSquare = clickedSquare;
+    showPossibleMoves(clickedSquare);
+  }
+}
+
+function showPossibleMoves(square) {
+  clearHighlights();
+  const moves = game.moves({ square: square, verbose: true });
+  moves.forEach(move => {
+    const targetSquare = board.querySelector(`[data-square="${move.to}"]`);
+    const highlight = document.createElement('div');
+    highlight.classList.add('highlight');
+    targetSquare.appendChild(highlight);
+  });
+}
+
+function clearHighlights() {
+  const highlights = board.querySelectorAll('.highlight');
+  highlights.forEach(highlight => highlight.remove());
+}
+
+function updatePieceMoveCount(move) {
+  const pieceKey = `${move.color}${move.piece}-${move.from.charCodeAt(0) - 97}-${8 - parseInt(move.from[1])}`;
+  piecesMoved[pieceKey] = (piecesMoved[pieceKey] || 0) + 1;
+  
+  if (piecesMoved[pieceKey] === 3) {
+    evolvePiece(move);
+    piecesMoved[pieceKey] = 0;
+  }
+  
+  const newPieceKey = `${move.color}${move.piece}-${move.to.charCodeAt(0) - 97}-${8 - parseInt(move.to[1])}`;
+  piecesMoved[newPieceKey] = piecesMoved[pieceKey];
+  delete piecesMoved[pieceKey];
+}
+
+function evolvePiece(move) {
+  const pieceType = move.piece.toLowerCase();
+  const color = move.color;
+  
+  messageElement.textContent = `${color === 'w' ? 'White' : 'Black'} ${getPieceName(pieceType)} evolved!`;
+  setTimeout(() => messageElement.textContent = '', 3000);
+  
+  // Here you would implement the actual evolution logic
+  // For this example, we'll just pretend the piece has evolved
+}
+
+function getPieceName(pieceType) {
+  const names = { p: 'Pawn', r: 'Rook', n: 'Knight', b: 'Bishop', q: 'Queen', k: 'King' };
+  return names[pieceType] || 'Piece';
+}
+
+createBoard();
+</script>
+</body></html>
